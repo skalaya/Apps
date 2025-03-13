@@ -1,0 +1,268 @@
+<html>
+    <head>
+        <title>Collaborate Platform SDK Demo</title>
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css" integrity="sha384-aUGj/X2zp5rLCbBxumKTCw2Z50WgIr1vs/PFN4praOTvYXWlVyh2UtNUU0KAUhAX" crossorigin="anonymous">
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script src="https://sdk-cdn.mypurecloud.com/client-apps/2.6.3/purecloud-client-app-sdk-de77761d.min.js"></script>
+        <style>
+            body {
+                margin-left: 20px;
+            }
+
+            .msg-group {
+                position: relative;
+            }
+
+            .msg-group .checkbox {
+                position: absolute;
+                height: 1em;
+                font-size: 1em;
+                right: 15px;
+            }
+
+            @media (max-width: 768px) {
+                .msg-group .checkbox {
+                    top: -20px;
+                    right: 15px;
+                    padding: 0;
+                }
+            }
+
+            @media (min-width: 768px) {
+                .msg-group .checkbox {
+                    bottom: 0;
+                    margin-left: 15px;
+                    padding-top: 0;
+                }
+            }
+
+            fieldset {
+                margin-top: 30px;
+            }
+        </style>
+
+        <!-- Include the CJS SDK -->
+        <script src="https://sdk-cdn.mypurecloud.com/javascript/217.0.0/purecloud-platform-client-v2.min.js"></script>
+
+    </head>
+
+    <body>
+        <h2>Callback con máscara dinámica</h2>
+
+        <form class="form-horizontal container-fluid">
+            <div class="form-group">
+                <label for="title" class="col-sm-1 control-label">Phone number</label>
+                <div class="col-sm-11">
+                    <input type="text" class="form-control" id="title" placeholder="56912345678">
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="col-sm-offset-1 col-sm-11">
+                    <button type="submit" class="btn btn-primary send-toast">Callback</button>
+                </div>
+            </div>
+        </form>
+
+
+
+        <script type="text/javascript">$(function () {
+            const clientId = '7835c35c-eb6d-4459-a5df-837cb218500f';
+            const redirectUri = 'https://skalaya.github.io/Apps/index.html';
+
+            const appName = 'sample_app';
+            const qParamLanguage = 'language';
+            const qParamEnvironment = 'environment';
+
+            // Default values are assigned but values should 
+            // be set on the function 'assignConfiguration'
+            let language = 'en-us';
+            let environment = 'mypurecloud.com'; 
+
+            let userDetails = null;
+            let maskPool = ["56947463606",
+"56947475477",
+"56948091725",
+"56948175298",
+"56948444143",
+"56948634140",
+"56948839881",
+"56949253301",
+"56949297242",
+"56949673288",
+"56950076581",
+"56950099189",
+"56950330971",
+"56950432815",
+"56950457162",
+"56950493328",
+"56950586750",
+"56950935973",
+"56950938336",
+"56951103978",
+"56951109473",
+"56951152931",
+"56951497218",
+"56951921503",
+"56951932356"]
+
+            /**
+             * Configure both the Platform SDK and the Client App SDK
+             */
+            function setupGenesysClients(){
+              const platformClient = require('platformClient');
+              const client = platformClient.ApiClient.instance;
+              const usersApi = new platformClient.UsersApi();
+              const conversationsApi = new platformClient.ConversationsApi();
+
+              // Configure Client App
+              let ClientApp = window.purecloud.apps.ClientApp;
+              let myClientApp = new ClientApp({
+                  pcEnvironment: environment
+              });
+
+
+              // Configure and Authenticate Platform Client
+              client.setPersistSettings(true, appName);
+              client.setEnvironment(environment);
+
+
+              // Callback
+              var $titleField = $('input#title');
+
+              let body = {
+                  "callbackNumbers": [
+                      "56912345678"
+                  ],
+                  "queueId": "cac7501e-2662-4fc2-b903-a07655bf7578",
+                  "callerId": "+56233419217",
+                  "callerIdName": "entel",
+                  "routingData": {
+                    "routingFlags": [
+                      "AGENT_OWNED_CALLBACK"
+                    ],
+                    "scoredAgents": [
+                      {
+                        "score": 100,
+                        "agent": {
+                          "id": "abc-123"
+                        }
+                      }
+                    ]
+                  }
+              }; // Object | Callback
+
+              function canSubmitForm () {
+                  return !!($titleField.val());
+              }
+
+              function setFormSubmissionState() {
+                  $('button.send-toast').prop('disabled', !canSubmitForm());
+              }
+
+              $titleField.on('input change', setFormSubmissionState);
+
+              $('form').submit(function (e) {
+                  e.preventDefault();
+
+                  if (canSubmitForm() === false) {
+                      return false;
+                  }
+
+
+                // UsersMe
+                let userDetails = null;
+
+                return client.loginImplicitGrant(clientId, redirectUri)
+
+                  .then(data => usersApi.getUsersMe()
+                  .then((data) => {
+                    userDetails = data
+                    console.log(`getUsersMe success! data: ${JSON.stringify(data, null, 2)}`);
+
+                    body.callbackNumbers[0] = $titleField.val();
+                    body.callerId = "+" + maskPool[Math.floor(Math.random() * maskPool.length)];
+                    body.routingData.scoredAgents[0].agent.id = userDetails.id;
+
+                    return client.loginImplicitGrant(clientId, redirectUri)
+
+                      .then(data => conversationsApi.postConversationsCallbacks(body)
+                      .then((data) => {
+                        conversationData = data;
+                        console.log(`postConversationsCallbacks success! data: ${JSON.stringify(data, null, 2)}`);
+                        myClientApp.alerting.showToastPopup(
+                          `Hola ${userDetails.name}`, 
+                          'tu callback fue creado con éxito 😊');
+                      })
+                      .catch((err) => {
+                        console.log('There was a failure calling postConversationsCallbacks');
+                        console.error(err);
+                      }));
+
+                  })
+                  .catch((err) => {
+                    console.log('There was a failure calling getUsersMe');
+                    console.error(err);
+                  }));
+
+
+                  $titleField.val('');
+                  setFormSubmissionState();
+              });
+
+              setFormSubmissionState();
+              $titleField.focus();
+
+            }
+
+
+            /**
+             * Assign the language and environment for the app first through
+             * the query parameters. But if non-existent, attempt to get
+             * it from localStorage. If none, use default values.
+             */
+            function assignConfiguration(){
+              let url = new URL(window.location);
+              let searchParams = new URLSearchParams(url.search);
+
+              if(searchParams.has(qParamLanguage)){
+                language = searchParams.get(qParamLanguage);
+                localStorage.setItem(`${appName}_language`, language);
+              } else {
+                let local_lang = localStorage.getItem(`${appName}_language`);
+                if(local_lang) language = local_lang;
+              }
+
+              if(searchParams.has(qParamEnvironment)){
+                environment = searchParams.get(qParamEnvironment);
+                localStorage.setItem(`${appName}_environment`, environment);
+              } else {
+                let local_env = localStorage.getItem(`${appName}_environment`);
+                if(local_env) environment = local_env;
+              }
+            }
+
+            // After page loads...
+            window.addEventListener('load', (event) => {
+              assignConfiguration();
+              console.log(`environment: ${environment}`);
+              console.log(`language: ${language}`);
+
+              setupGenesysClients()
+              .then(() => { 
+                // Display values to the page
+                //document.getElementById('span_environment').innerText = environment;
+                //document.getElementById('span_language').innerText = language;
+                //document.getElementById('title').innerText = conversationData.conversation.id;
+
+                console.log('Finished setup.');
+              })
+            });
+
+        });
+        </script>
+
+        
+    </body>
+</html>
